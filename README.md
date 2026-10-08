@@ -4,6 +4,8 @@
 
 **No Reading, No Entry, No Payment.**
 
+**Live demo:** https://zeroasphyx.onrender.com (free plan: the first visit after a quiet period takes about a minute to wake up)
+
 A sewer and septic-tank entry safety and accountability system:
 
 1. A worker may enter a manhole only with a time-limited digital **entry permit**.
@@ -215,6 +217,8 @@ ZeroAsphyx deploys as **one service**. Express serves the built dashboard from `
 Every push to `main` runs CI. It runs the tests, builds, starts the production service and checks it on Node 20 and 22, and builds and runs the Docker image. A green CI badge at the top means the deployable build works on Linux.
 
 ### Option A: Render (blueprint, recommended)
+
+The live demo runs on Render: **https://zeroasphyx.onrender.com** (service `zeroasphyx`, free plan, Singapore region).
 
 1. Sign in at <https://render.com> with GitHub.
 2. **New → Blueprint** → choose this repository. Render reads `render.yaml`:
