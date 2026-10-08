@@ -12,5 +12,5 @@ services:
       - key: NODE_VERSION
         value: "20"
       - key: MQTT_PREFIX
-        value: safeentry/TEAMID # must equal PREFIX in firmware/sketch.ino
+        value: ZeroAsphyx # must equal PREFIX in firmware/sketch.ino
       # PUBLIC_URL is optional on Render: RENDER_EXTERNAL_URL is used for QR codes automatically.

@@ -7,7 +7,7 @@
 #include "mbedtls/md.h"
 
 // ---------- MUST MATCH THE SERVER CONFIG ----------
-const char* PREFIX        = "safeentry/TEAMID";        // same topic prefix as the server
+const char* PREFIX        = "ZeroAsphyx";        // same topic prefix as the server
 const char* PROBE_ID      = "PROBE-001";
 const char* BEACON_ID     = "BEACON-001";
 const char* DEVICE_SECRET = "probe-001-demo-secret";   // same secret as the server's PROBE-001

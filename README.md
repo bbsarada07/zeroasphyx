@@ -90,7 +90,7 @@ Browsers only allow sound after a user gesture, so **click anywhere on the dashb
 
 The firmware is the source of truth. The server's topic prefix, the PROBE-001 secret and the MH-001 coordinates are set to match `sketch.ino`, and `npm test` includes `server/test/firmware.test.js`, which reads `sketch.ino` and `diagram.json` and fails if they drift apart.
 
-> **Use a unique topic prefix before the event.** The firmware ships with `PREFIX = "safeentry/TEAMID"` on a public broker. Any other team running the same template would share those topics, and their devices' messages would reach your dashboard. To change it, edit line 10 of `sketch.ino` (e.g. `"safeentry/hyd-7k3q"`) and start the server with the same value: `MQTT_PREFIX=safeentry/hyd-7k3q npm run dev` (PowerShell: `$env:MQTT_PREFIX="safeentry/hyd-7k3q"; npm run dev`), or change `prefix` in `server/src/config.js`.
+> **Topic prefix:** `ZeroAsphyx`, set on line 10 of `sketch.ino` and as the server default. MQTT topics are case-sensitive. To use a different prefix, change line 10 of `sketch.ino` and start the server with the same value: `MQTT_PREFIX=<prefix> npm run dev` (PowerShell: `$env:MQTT_PREFIX="<prefix>"; npm run dev`), or change `prefix` in `server/src/config.js`.
 
 ### Knob and sensor positions
 
@@ -148,7 +148,7 @@ Reset demo data afterwards.
 
 ## 5. How it works
 
-### MQTT topics (prefix `safeentry/TEAMID` as in `sketch.ino`, JSON payloads)
+### MQTT topics (prefix `ZeroAsphyx` as in `sketch.ino`, JSON payloads)
 
 | Topic | Direction | Payload |
 |---|---|---|
@@ -200,7 +200,7 @@ Everything (thresholds, timers, broker, prefix, device keys, permit validity) is
 | `PORT` | 4000 | HTTP port |
 | `PUBLIC_URL` | address the dashboard was opened from (Render/Railway URL detected automatically) | base URL printed into permit QR codes |
 | `MQTT_URL` | `mqtt://broker.hivemq.com:1883` | broker |
-| `MQTT_PREFIX` | `safeentry/TEAMID` | topic prefix; must equal `PREFIX` in `sketch.ino` |
+| `MQTT_PREFIX` | `ZeroAsphyx` | topic prefix; must equal `PREFIX` in `sketch.ino` |
 | `ZA_MQTT=off` | on | disable MQTT completely |
 | `ZA_MODE=SIM` | LIVE | data source at startup |
 | `ZA_STORE=json` | sqlite | force the JSON-file store |

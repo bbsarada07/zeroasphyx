@@ -26,7 +26,7 @@ module.exports = {
     enabled: env.ZA_MQTT !== 'off',
     url: env.MQTT_URL || 'mqtt://broker.hivemq.com:1883',
     // Must equal PREFIX in firmware/sketch.ino (the firmware is the source of truth).
-    prefix: env.MQTT_PREFIX || 'safeentry/TEAMID',
+    prefix: env.MQTT_PREFIX || 'ZeroAsphyx',
   },
 
   // Data source at startup: 'LIVE' = Wokwi over MQTT, 'SIM' = simulator panel.

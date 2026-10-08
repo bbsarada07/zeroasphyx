@@ -25,7 +25,7 @@ The server is built to match this firmware. `server/test/firmware.test.js` (part
    ```
 5. On the dashboard, set the header to **LIVE (Wokwi)**.
 
-> **Topic prefix:** `PREFIX` (line 10) is `safeentry/TEAMID`, and the server uses the same value by default. Topics on the public broker are shared with anyone using the same prefix, so for an event change it to something unique here **and** set `MQTT_PREFIX` to the same value on the server.
+> **Topic prefix:** `PREFIX` (line 10) is `ZeroAsphyx`, and the server uses the same value by default. To change it, edit it here **and** set `MQTT_PREFIX` to the same value on the server. Topics are case-sensitive.
 
 ---
 
