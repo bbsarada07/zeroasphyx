@@ -26,6 +26,7 @@ function buildRouter(engine, sim) {
     permitValidityMs: config.permit.validityMs,
     productionValidityMin: config.permit.productionValidityMin,
     sessionMaxAgeMs: config.session.maxAgeMs,
+    noteMaxLength: config.notes.maxLength,
     gas: config.gas,
     descent: config.descent,
     locationMaxDistanceM: config.location.maxDistanceM,
@@ -66,7 +67,12 @@ function buildRouter(engine, sim) {
     const dataUrl = await QRCode.toDataURL(url, { margin: 1, width: 320, errorCorrectionLevel: 'M' });
     return { url, dataUrl };
   }));
-  r.post('/permits/:id/close', wrap((req) => engine.closeJob(req.params.id, (req.body && req.body.closedBy) || 'supervisor')));
+  r.get('/permits/:id/notes', wrap((req) => {
+    if (!store.get('permits', req.params.id)) throw httpError(404, 'Permit not found');
+    return engine.notesFor(req.params.id);
+  }));
+  r.post('/permits/:id/notes', wrap((req) => engine.addNote(req.params.id, req.body || {})));
+  r.post('/permits/:id/close',wrap((req) => engine.closeJob(req.params.id, (req.body && req.body.closedBy) || 'supervisor')));
   r.post('/incidents/:id/ack', wrap((req) => engine.acknowledgeIncident(req.params.id)));
   r.post('/alerts/:id/dismiss', wrap((req) => {
     engine.dismissAlert(req.params.id);

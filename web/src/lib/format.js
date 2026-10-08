@@ -20,6 +20,22 @@ export function ago(ms) {
   return `${Math.floor(s / 60)} min ${s % 60} s ago`;
 }
 
+// Coarse "how long ago" for lists that span hours or days.
+export function relTime(ms) {
+  if (ms === null || ms === undefined || Number.isNaN(ms)) return '—';
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 45) return 'just now';
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} h ago`;
+  const d = Math.round(h / 24);
+  return `${d} day${d === 1 ? '' : 's'} ago`;
+}
+
+// Same rule as the server (decision.js): valid through the end of the due day, India time.
+export const calibrationExpired = (due, nowMs) => Boolean(due) && Date.parse(`${due}T23:59:59+05:30`) < nowMs;
+
 // Plain-language headline for each denial code (the server supplies the specific detail).
 export const REASON_HEADLINE = {
   OK: 'Safe to enter',
@@ -77,7 +93,8 @@ export function summarizeEvent(e) {
     case 'SIGNAL_LOST': return `Beacon silent on ${d.permitId}`;
     case 'SIGNAL_RESTORED': return `Beacon back on ${d.permitId}`;
     case 'ALERT_UNLINKED': return `${d.type} from ${d.deviceId} with no open job`;
-    case 'BILL_DECISION': return `${d.billId} ${d.decision} · ${d.reason}`;
+    case 'NOTE_ADDED': return `${d.author} on ${d.permitId}: “${d.text}”`;
+    case 'BILL_DECISION':return `${d.billId} ${d.decision} · ${d.reason}`;
     case 'DEMO_SEEDED': return 'Demo data loaded';
     default: return JSON.stringify(d);
   }

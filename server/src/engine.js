@@ -16,6 +16,7 @@ const toBool = (v, dflt) => {
   return Boolean(v);
 };
 const numOrNull = (v) => (v === undefined || v === null || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
+const noteOf = (e) => ({ seq: e.seq, ts: e.ts, permitId: e.data.permitId, author: e.data.author, text: e.data.text });
 
 class Engine extends EventEmitter {
   constructor(store) {
@@ -329,6 +330,22 @@ class Engine extends EventEmitter {
     this.sendToDevice(`beacon/${config.beaconId}/cmd`, { siren: false, end: true });
     this.changed();
     return updated;
+  }
+
+  // Notes live only in the hash-chained audit log, so they can be added but never edited.
+  addNote(permitId, { text, author } = {}) {
+    const p = this.store.get('permits', permitId);
+    if (!p) throw httpError(404, 'Permit not found');
+    const body = str(text).trim();
+    if (!body) throw httpError(400, 'Write a note before saving.');
+    if (body.length > config.notes.maxLength) throw httpError(400, `Notes are limited to ${config.notes.maxLength} characters.`);
+    const e = this.log('NOTE_ADDED', { permitId: p.id, text: body, author: str(author).trim().slice(0, 60) || 'Unknown' });
+    this.changed();
+    return noteOf(e);
+  }
+
+  notesFor(permitId) {
+    return this.store.allEvents().filter((e) => e.type === 'NOTE_ADDED' && e.data.permitId === permitId).map(noteOf);
   }
 
   pruneTelemetry(permitId) {

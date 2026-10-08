@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FlaskConical, ShieldCheck, Wifi, WifiOff } from 'lucide-react';
+import { FlaskConical, Moon, ShieldCheck, Sun, Wifi, WifiOff } from 'lucide-react';
 import { useState } from 'react';
 import { ROLES, useLive } from '../lib/live';
 import { post } from '../lib/api';
@@ -61,7 +61,9 @@ export function MqttDot() {
 }
 
 export default function Header({ compact = false }) {
-  const { role, setRole, setDrawerOpen } = useLive();
+  const { role, setRole, setDrawerOpen, theme, toggleTheme } = useLive();
+  const dark = theme === 'dark';
+  const ThemeIcon = dark ? Sun : Moon;
   const navigate = useNavigate();
 
   const changeRole = (r) => {
@@ -112,6 +114,15 @@ export default function Header({ compact = false }) {
               {ROLES.map((r) => <option key={r}>{r}</option>)}
             </select>
           </label>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={dark ? 'Light theme' : 'Dark theme'}
+            className="rounded-lg border-2 border-slate-600 p-1.5 text-slate-200 hover:bg-white/10"
+          >
+            <ThemeIcon className="h-4 w-4" aria-hidden />
+          </button>
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}

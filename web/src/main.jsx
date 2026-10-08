@@ -4,7 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { LiveProvider } from './lib/live';
 import { unlockAudio } from './lib/siren';
+import { applyTheme, initialTheme } from './lib/theme';
 import './index.css';
+
+applyTheme(initialTheme());
 
 // Browsers only allow audio after a user gesture: unlock the siren on the first click anywhere.
 window.addEventListener('pointerdown', unlockAudio, { once: true });

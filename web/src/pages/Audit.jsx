@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Fingerprint, Hammer, ScrollText, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { useApiData } from '../lib/live';
+import { Fingerprint, Hammer, Printer, ScrollText, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useApiData, useNow } from '../lib/live';
 import { api, post } from '../lib/api';
-import { fmtDateTime, shortHash, summarizeEvent } from '../lib/format';
+import { fmtDateTime, relTime, shortHash, summarizeEvent } from '../lib/format';
 import { Button, ErrorNote } from '../components/ui';
 
 export default function Audit() {
   const { data: events, error } = useApiData('/audit/events');
+  const now = useNow(15000);
   const [result, setResult] = useState(null);
   const [tampered, setTampered] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -40,11 +41,15 @@ export default function Audit() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-3 text-3xl font-black tracking-tight"><ScrollText className="h-8 w-8" aria-hidden /> Tamper-evident audit log</h1>
-          <p className="mt-1 text-lg font-semibold text-slate-600">Each record stores the hash of the one before it. Editing any record breaks the chain from that point.</p>
+          <p className="mt-1 text-lg font-semibold text-slate-600 dark:text-slate-300">Each record stores the hash of the one before it. Editing any record breaks the chain from that point.</p>
+          <p className="mt-1 hidden text-sm font-semibold print:block">Printed {fmtDateTime(now)} · {rows.length} records</p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 print:hidden">
           <Button size="lg" variant="primary" onClick={verify} disabled={busy}>
             <Fingerprint className="h-6 w-6" aria-hidden /> {busy ? 'Verifying…' : 'Verify chain'}
+          </Button>
+          <Button size="lg" variant="outline" onClick={() => window.print()} disabled={!events}>
+            <Printer className="h-6 w-6" aria-hidden /> Print / save as PDF
           </Button>
           <Button size="lg" variant="redOutline" onClick={tamper}>
             <Hammer className="h-6 w-6" aria-hidden /> Tamper with a record (demo)
@@ -54,7 +59,7 @@ export default function Audit() {
       <ErrorNote>{error || err}</ErrorNote>
 
       {tampered && !result && (
-        <div className="rounded-2xl bg-amber-100 px-5 py-4 text-lg font-bold text-amber-950 ring-2 ring-amber-500">
+        <div className="rounded-2xl bg-amber-100 px-5 py-4 text-lg font-bold text-amber-950 ring-2 ring-amber-500 dark:bg-amber-950 dark:text-amber-100 print:hidden">
           Record #{tampered.seq} ({tampered.type}) was edited in the database: {tampered.description} Now press “Verify chain”.
         </div>
       )}
@@ -77,9 +82,9 @@ export default function Audit() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border-2 border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+      <div className="overflow-x-auto rounded-2xl border-2 border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 print:overflow-visible print:border-0">
+        <table className="w-full text-left text-sm print:text-xs">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-800 dark:text-slate-400">
             <tr>
               <th className="px-3 py-3">#</th>
               <th className="px-3 py-3">Time</th>
@@ -94,11 +99,14 @@ export default function Audit() {
               const isBroken = broken === e.seq;
               const after = broken !== null && e.seq > broken;
               return (
-                <tr key={e.seq} className={`border-t border-slate-100 align-top ${isBroken ? 'bg-red-700 text-white' : after ? 'bg-amber-50' : ''}`}>
+                <tr key={e.seq} className={`break-inside-avoid border-t border-slate-100 align-top dark:border-slate-800 ${isBroken ? 'bg-red-700 text-white' : after ? 'bg-amber-50 dark:bg-amber-950/60' : ''}`}>
                   <td className="px-3 py-2 font-mono font-bold">{e.seq}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{fmtDateTime(e.ts)}</td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    {fmtDateTime(e.ts)}
+                    <span className={`block text-xs font-semibold print:hidden ${isBroken ? 'text-red-100' : 'text-slate-500 dark:text-slate-400'}`}>{relTime(now - Date.parse(e.ts))}</span>
+                  </td>
                   <td className="px-3 py-2">
-                    <span className={`rounded-md px-2 py-0.5 font-mono text-xs font-bold ${isBroken ? 'bg-white text-red-800' : 'bg-slate-100 text-slate-800'}`}>{e.type}</span>
+                    <span className={`rounded-md px-2 py-0.5 font-mono text-xs font-bold ${isBroken ? 'bg-white text-red-800' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'}`}>{e.type}</span>
                     {isBroken && <div className="mt-1 text-xs font-black">✖ BROKEN HERE</div>}
                   </td>
                   <td className="max-w-xl px-3 py-2 font-medium">{summarizeEvent(e)}</td>

@@ -51,6 +51,29 @@ export function startSiren() {
   }
 }
 
+// Three short low beeps (about 0.9 s): a denial, distinct from the emergency siren.
+export function denyBeep() {
+  const c = unlockAudio();
+  if (!c) return;
+  try {
+    const vol = c.createGain();
+    vol.gain.value = 0;
+    vol.connect(c.destination);
+    const osc = c.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = 440;
+    osc.connect(vol);
+    const t0 = c.currentTime + 0.02;
+    for (let i = 0; i < 3; i++) {
+      const t = t0 + i * 0.3;
+      vol.gain.setValueAtTime(0.12, t);
+      vol.gain.setValueAtTime(0, t + 0.18);
+    }
+    osc.start(t0);
+    osc.stop(t0 + 0.9);
+  } catch { /* audio is best effort */ }
+}
+
 function voicesReady(synth) {
   const v = synth.getVoices();
   if (v.length) return Promise.resolve(v);

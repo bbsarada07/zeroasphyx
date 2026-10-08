@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { api } from './api';
+import { applyTheme, initialTheme, saveTheme } from './theme';
 
 const LiveCtx = createContext(null);
 
@@ -45,10 +46,20 @@ export function LiveProvider({ children }) {
     try { localStorage.setItem('za-role', r); } catch { /* ignore */ }
   }, []);
 
+  const [theme, setThemeState] = useState(initialTheme);
+  const toggleTheme = useCallback(() => {
+    setThemeState((t) => {
+      const next = t === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      saveTheme(next);
+      return next;
+    });
+  }, []);
+
   const serverNow = useCallback(() => Date.now() + offset.current, []);
 
   return (
-    <LiveCtx.Provider value={{ live, refs, cfg, socketUp, role, setRole, serverNow, drawerOpen, setDrawerOpen }}>
+    <LiveCtx.Provider value={{ live, refs, cfg, socketUp, role, setRole, serverNow, drawerOpen, setDrawerOpen, theme, toggleTheme }}>
       {children}
     </LiveCtx.Provider>
   );

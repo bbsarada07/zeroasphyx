@@ -136,6 +136,7 @@ function report(store, id) {
     telemetry: telemetry.slice(-30),
     telemetryCount: telemetry.length,
     events,
+    notes: events.filter((e) => e.type === 'NOTE_ADDED').map((e) => ({ seq: e.seq, ts: e.ts, author: e.data.author, text: e.data.text })),
     bills,
     chain: audit.verify(store),
   };

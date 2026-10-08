@@ -4,9 +4,9 @@ import { GAS, ago, gasLimitText, gasSafe } from '../lib/format';
 
 function Tile({ ok, warn, icon: Icon, label, value, unit, sub, word }) {
   const cls = ok
-    ? 'bg-emerald-50 ring-emerald-600 text-emerald-950'
+    ? 'bg-emerald-50 ring-emerald-600 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-100'
     : warn
-      ? 'bg-amber-100 ring-amber-500 text-amber-950'
+      ? 'bg-amber-100 ring-amber-500 text-amber-950 dark:bg-amber-950 dark:text-amber-100'
       : 'bg-red-700 ring-red-800 text-white';
   return (
     <div className={`min-w-0 rounded-2xl p-4 ring-2 ${cls}`}>
@@ -32,7 +32,7 @@ export default function BeaconPanel() {
   const job = live?.job;
   const g = cfg?.gas;
   if (!t || !g) {
-    return <p className="text-lg font-semibold text-slate-500">No beacon data yet. The beacon reports every 2 s once a job starts.</p>;
+    return <p className="text-lg font-semibold text-slate-500 dark:text-slate-400">No beacon data yet. The beacon reports every 2 s once a job starts.</p>;
   }
   const linked = job && t.permitId === job.id;
   const mon = job?.monitor;
@@ -44,7 +44,7 @@ export default function BeaconPanel() {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-semibold text-slate-600">
+      <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
         {t.deviceId} · {linked ? `linked to ${job.id}` : t.permitId ? `permit ${t.permitId} (no open job)` : 'not linked to a permit'} · updated {ago(now - Date.parse(t.ts))}
       </p>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

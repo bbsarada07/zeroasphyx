@@ -42,6 +42,9 @@ module.exports = {
   location: {
     maxDistanceM: 50,
   },
+  notes: {
+    maxLength: 1000,
+  },
   descent: {
     minSamples: 3,
     minDepthRatio: 0.8, // max sample depth must reach 80% of the manhole's registered depth

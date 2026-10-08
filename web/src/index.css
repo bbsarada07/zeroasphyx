@@ -5,8 +5,19 @@
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
 }
 
+/* Screen only, so printed reports and PDFs always come out light. */
+@custom-variant dark {
+  @media screen {
+    &:where(.dark, .dark *) { @slot; }
+  }
+}
+
 html, body, #root { min-height: 100%; }
 body { background: #f1f5f9; color: #0f172a; -webkit-font-smoothing: antialiased; }
+@media screen {
+  html.dark { color-scheme: dark; }
+  html.dark body { background: #020617; color: #e2e8f0; }
+}
 
 @keyframes za-flash { 0%, 100% { background-color: #b91c1c; } 50% { background-color: #7f1d1d; } }
 .za-flash { animation: za-flash 1s steps(2, jump-none) infinite; }

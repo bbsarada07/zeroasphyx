@@ -2,11 +2,11 @@ import { Ban, CircleCheck, CircleHelp, CircleX, Clock, TriangleAlert } from 'luc
 
 export function Card({ title, icon: Icon, right, children, className = '' }) {
   return (
-    <section className={`rounded-2xl border-2 border-slate-200 bg-white shadow-sm ${className}`}>
+    <section className={`rounded-2xl border-2 border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>
       {title && (
-        <header className="flex items-center justify-between gap-3 border-b-2 border-slate-100 px-5 py-3">
-          <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900">
-            {Icon && <Icon className="h-5 w-5 text-slate-500" aria-hidden />}
+        <header className="flex items-center justify-between gap-3 border-b-2 border-slate-100 px-5 py-3 dark:border-slate-800">
+          <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            {Icon && <Icon className="h-5 w-5 text-slate-500 dark:text-slate-400" aria-hidden />}
             {title}
           </h2>
           {right}
@@ -19,11 +19,11 @@ export function Card({ title, icon: Icon, right, children, className = '' }) {
 
 export function Button({ variant = 'primary', size = 'md', className = '', ...props }) {
   const variants = {
-    primary: 'bg-slate-900 text-white hover:bg-slate-700 disabled:bg-slate-300',
-    green: 'bg-emerald-700 text-white hover:bg-emerald-800 disabled:bg-slate-300',
-    red: 'bg-red-700 text-white hover:bg-red-800 disabled:bg-slate-300',
-    outline: 'border-2 border-slate-300 bg-white text-slate-900 hover:bg-slate-50 disabled:text-slate-400',
-    redOutline: 'border-2 border-red-300 bg-white text-red-800 hover:bg-red-50 disabled:text-slate-400',
+    primary: 'bg-slate-900 text-white hover:bg-slate-700 disabled:bg-slate-300 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white dark:disabled:bg-slate-700 dark:disabled:text-slate-400',
+    green: 'bg-emerald-700 text-white hover:bg-emerald-800 disabled:bg-slate-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400',
+    red: 'bg-red-700 text-white hover:bg-red-800 disabled:bg-slate-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400',
+    outline: 'border-2 border-slate-300 bg-white text-slate-900 hover:bg-slate-50 disabled:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800',
+    redOutline: 'border-2 border-red-300 bg-white text-red-800 hover:bg-red-50 disabled:text-slate-400 dark:border-red-800 dark:bg-slate-900 dark:text-red-300 dark:hover:bg-red-950',
   };
   const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2.5 text-base', lg: 'px-6 py-4 text-lg' };
   return (
@@ -46,8 +46,8 @@ const STATUS = {
   REJECTED: ['bg-red-700 text-white', CircleX],
   REVOKED: ['bg-red-700 text-white', Ban],
   EXPIRED: ['bg-amber-500 text-slate-950', Clock],
-  PENDING: ['bg-slate-200 text-slate-800', Clock],
-  NOT_FOUND: ['bg-slate-200 text-slate-800', CircleHelp],
+  PENDING: ['bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100', Clock],
+  NOT_FOUND: ['bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100', CircleHelp],
   WARNING: ['bg-amber-500 text-slate-950', TriangleAlert],
 };
 
@@ -66,19 +66,19 @@ export function StatusPill({ status, label, size = 'md' }) {
 export function Field({ label, children }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-semibold text-slate-600">{label}</span>
+      <span className="mb-1 block text-sm font-semibold text-slate-600 dark:text-slate-300">{label}</span>
       {children}
     </label>
   );
 }
 
-export const selectCls = 'w-full rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-base font-medium text-slate-900 focus:border-sky-600 focus:outline-none disabled:bg-slate-100';
+export const selectCls = 'w-full rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-base font-medium text-slate-900 focus:border-sky-600 focus:outline-none disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-800';
 
 export function KV({ k, v, mono }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-wider text-slate-500">{k}</dt>
-      <dd className={`text-base font-semibold text-slate-900 ${mono ? 'font-mono text-sm break-all' : ''}`}>{v ?? '—'}</dd>
+      <dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{k}</dt>
+      <dd className={`text-base font-semibold text-slate-900 dark:text-slate-100 ${mono ? 'font-mono text-sm break-all' : ''}`}>{v ?? '—'}</dd>
     </div>
   );
 }
@@ -86,7 +86,7 @@ export function KV({ k, v, mono }) {
 export function ErrorNote({ children }) {
   if (!children) return null;
   return (
-    <p role="alert" className="mt-3 flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+    <p role="alert" className="mt-3 flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-800 dark:bg-red-950 dark:text-red-200">
       <CircleX className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> {children}
     </p>
   );

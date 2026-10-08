@@ -376,6 +376,26 @@ test('evidence report and public verify', async () => {
   assert.match(qr.dataUrl, /^data:image\/png;base64,/);
 });
 
+test('permit notes: appended to the audit chain, validated, shown in the report', async () => {
+  const r = await sim('safe-descent');
+  const added = await post(`/permits/${r.permitId}/notes`, { text: '  Worker reported a strong smell at 2 m.  ', author: 'Supervisor' });
+  assert.equal(added.status, 200);
+  assert.equal(added.body.text, 'Worker reported a strong smell at 2 m.');
+  assert.equal(added.body.author, 'Supervisor');
+
+  assert.equal((await post(`/permits/${r.permitId}/notes`, { text: '   ' })).status, 400);
+  assert.equal((await post(`/permits/${r.permitId}/notes`, { text: 'x'.repeat(config.notes.maxLength + 1) })).status, 400);
+  assert.equal((await post('/permits/PRM-NOTREAL/notes', { text: 'hello' })).status, 404);
+  assert.equal((await api('GET', '/permits/PRM-NOTREAL/notes')).status, 404);
+
+  const notes = await get(`/permits/${r.permitId}/notes`);
+  assert.deepEqual(notes.map((n) => n.text), ['Worker reported a strong smell at 2 m.']);
+  const rep = await get(`/report/${r.permitId}`);
+  assert.equal(rep.notes.length, 1);
+  assert.equal(rep.notes[0].seq, added.body.seq);
+  assert.equal((await get('/audit/verify')).ok, true);
+});
+
 test('scoreboard counts per contractor', async () => {
   const board = await get('/scoreboard');
   const c1 = board.find((c) => c.contractorId === 'C-01');
