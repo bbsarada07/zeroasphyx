@@ -1,10 +1,12 @@
 # ZeroAsphyx: single container serving the API, socket.io and the built dashboard.
 FROM node:20-bookworm-slim AS build
+# Toolchain so better-sqlite3 can compile if its prebuilt binary is unavailable
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY server/package.json server/
 COPY web/package.json web/
-RUN npm ci
+RUN npm ci --foreground-scripts && node -e "require('better-sqlite3')" && echo "better-sqlite3 OK"
 COPY . .
 RUN npm run build && npm prune --omit=dev
 

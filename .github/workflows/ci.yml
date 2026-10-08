@@ -44,5 +44,6 @@ jobs:
           for i in $(seq 1 30); do curl -fs http://localhost:4000/api/health && break; sleep 1; done
           echo
           curl -fs http://localhost:4000/api/health | grep '"ok":true'
+          curl -fs http://localhost:4000/api/health | grep '"storage":"sqlite"'
           curl -fs http://localhost:4000/ | grep '<div id="root">'
           docker logs za
