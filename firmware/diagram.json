@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "author": "SafeEntry",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "potH2S", "top": -200, "left": -320, "attrs": { "value": "0" } },
+    { "type": "wokwi-potentiometer", "id": "potCO", "top": -200, "left": -230, "attrs": { "value": "0" } },
+    { "type": "wokwi-potentiometer", "id": "potCH4", "top": -200, "left": -140, "attrs": { "value": "0" } },
+    { "type": "wokwi-potentiometer", "id": "potO2", "top": -200, "left": -50, "attrs": { "value": "512" } },
+    { "type": "wokwi-hc-sr04", "id": "sonar", "top": -210, "left": 120, "attrs": { "distance": "10" } },
+    { "type": "wokwi-pushbutton", "id": "btnStart", "top": 60, "left": -300, "attrs": { "color": "green", "label": "START" } },
+    { "type": "wokwi-pushbutton", "id": "btnSos", "top": 140, "left": -300, "attrs": { "color": "red", "label": "SOS" } },
+    { "type": "wokwi-slide-switch", "id": "swMove", "top": 220, "left": -280, "attrs": {} },
+    { "type": "wokwi-buzzer", "id": "bz", "top": 20, "left": 260, "attrs": { "volume": "0.3" } },
+    { "type": "wokwi-led", "id": "ledG", "top": 180, "left": 240, "attrs": { "color": "green" } },
+    { "type": "wokwi-led", "id": "ledR", "top": 180, "left": 300, "attrs": { "color": "red" } }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+
+    [ "potH2S:SIG", "esp:D34", "yellow", [] ],
+    [ "potH2S:VCC", "esp:3V3", "red", [] ],
+    [ "potH2S:GND", "esp:GND.1", "black", [] ],
+
+    [ "potCO:SIG", "esp:D35", "orange", [] ],
+    [ "potCO:VCC", "esp:3V3", "red", [] ],
+    [ "potCO:GND", "esp:GND.1", "black", [] ],
+
+    [ "potCH4:SIG", "esp:D32", "purple", [] ],
+    [ "potCH4:VCC", "esp:3V3", "red", [] ],
+    [ "potCH4:GND", "esp:GND.1", "black", [] ],
+
+    [ "potO2:SIG", "esp:D33", "blue", [] ],
+    [ "potO2:VCC", "esp:3V3", "red", [] ],
+    [ "potO2:GND", "esp:GND.1", "black", [] ],
+
+    [ "sonar:VCC", "esp:VIN", "red", [] ],
+    [ "sonar:GND", "esp:GND.2", "black", [] ],
+    [ "sonar:TRIG", "esp:D5", "green", [] ],
+    [ "sonar:ECHO", "esp:D18", "white", [] ],
+
+    [ "btnStart:1.l", "esp:D14", "green", [] ],
+    [ "btnStart:2.l", "esp:GND.2", "black", [] ],
+
+    [ "btnSos:1.l", "esp:D13", "red", [] ],
+    [ "btnSos:2.l", "esp:GND.2", "black", [] ],
+
+    [ "swMove:2", "esp:D4", "gray", [] ],
+    [ "swMove:1", "esp:GND.2", "black", [] ],
+
+    [ "bz:2", "esp:D25", "orange", [] ],
+    [ "bz:1", "esp:GND.1", "black", [] ],
+
+    [ "ledG:A", "esp:D26", "green", [] ],
+    [ "ledG:C", "esp:GND.1", "black", [] ],
+
+    [ "ledR:A", "esp:D27", "red", [] ],
+    [ "ledR:C", "esp:GND.1", "black", [] ]
+  ],
+  "dependencies": {}
+}

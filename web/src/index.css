@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Nirmala UI", "Noto Sans", "Noto Sans Devanagari", "Noto Sans Telugu", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+}
+
+html, body, #root { min-height: 100%; }
+body { background: #f1f5f9; color: #0f172a; -webkit-font-smoothing: antialiased; }
+
+@keyframes za-flash { 0%, 100% { background-color: #b91c1c; } 50% { background-color: #7f1d1d; } }
+.za-flash { animation: za-flash 1s steps(2, jump-none) infinite; }
+@media (prefers-reduced-motion: reduce) { .za-flash { animation: none; background-color: #b91c1c; } }
+
+@keyframes za-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.za-in { animation: za-in .25s ease-out; }
+
+@media print {
+  body { background: #fff; }
+  @page { margin: 12mm; }
+}

@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    name: Tests, build, production smoke test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Start the single production service and check it
+        run: |
+          PORT=4000 ZA_MQTT=off npm start > server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:4000/api/health && break; sleep 1; done
+          echo
+          curl -fs http://localhost:4000/api/health | grep '"ok":true'
+          curl -fs http://localhost:4000/ | grep '<div id="root">'
+          curl -fs http://localhost:4000/verify/PRM-H7K2Q9 | grep '<div id="root">'
+          curl -fs http://localhost:4000/api/audit/verify | grep '"ok":true'
+          cat server.log
+
+  docker:
+    name: Docker image builds and serves
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t zeroasphyx .
+      - name: Run the container and check it
+        run: |
+          docker run -d -p 4000:4000 -e ZA_MQTT=off --name za zeroasphyx
+          for i in $(seq 1 30); do curl -fs http://localhost:4000/api/health && break; sleep 1; done
+          echo
+          curl -fs http://localhost:4000/api/health | grep '"ok":true'
+          curl -fs http://localhost:4000/ | grep '<div id="root">'
+          docker logs za

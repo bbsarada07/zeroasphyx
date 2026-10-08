@@ -1,0 +1,23 @@
+{
+  "name": "zeroasphyx",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ZeroAsphyx - sewer entry safety and accountability. No Reading, No Entry, No Payment.",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w web",
+    "start": "npm run start -w server",
+    "test": "npm test -w server",
+    "test:mqtt": "npm run test:mqtt -w server"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

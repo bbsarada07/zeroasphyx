@@ -1,0 +1,8 @@
+# Normalise line endings so the repo builds the same on Windows and Linux hosts
+* text=auto eol=lf
+*.png binary
+*.ico binary
+# Firmware files are provided as-is: store them byte-for-byte
+firmware/sketch.ino -text
+firmware/diagram.json -text
+firmware/libraries.txt -text

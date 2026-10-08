@@ -1,0 +1,31 @@
+# Dependencies (never commit: reinstalled from package-lock.json)
+node_modules/
+
+# Build output
+web/dist/
+dist/
+
+# Runtime data (SQLite / JSON store, recreated and re-seeded automatically)
+server/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and caches
+*.log
+npm-debug.log*
+.npm/
+.vite/
+coverage/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,24 @@
+{
+  "name": "zeroasphyx-server",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js",
+    "test": "node --test --test-concurrency=1 test/scenarios.test.js test/firmware.test.js",
+    "test:mqtt": "node test/mqtt-live.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "mqtt": "^5.10.4",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.2.0"
+  }
+}
