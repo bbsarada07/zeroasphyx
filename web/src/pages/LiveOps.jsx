@@ -3,11 +3,12 @@ import { ArrowDown, CircleCheck, CircleX, Gauge, Hourglass, Play, Radio, ShieldC
 import { useLive, useNow } from '../lib/live';
 import { post } from '../lib/api';
 import { denyBeep } from '../lib/siren';
-import { GAS, REASON_HEADLINE, calibrationExpired, fmtTime, gasSafe, manholeOf, workerName } from '../lib/format';
+import { GAS, REASON_HEADLINE, RISK_TEXT, calibrationExpired, fmtTime, gasSafe, manholeOf, workerName } from '../lib/format';
 import { Button, Card, ErrorNote, Field, selectCls } from '../components/ui';
 import PermitCard from '../components/PermitCard';
 import BeaconPanel from '../components/BeaconPanel';
 import GasTrend from '../components/GasTrend';
+import RiskBadge from '../components/RiskBadge';
 
 function TestForm() {
   const { refs, live, role, serverNow } = useLive();
@@ -97,7 +98,7 @@ function SessionStatus({ session, waiting }) {
   );
 }
 
-function DescentPanel({ samples, manhole }) {
+function DescentPanel({ samples, manhole, aiAssessment }) {
   const { cfg } = useLive();
   const g = cfg?.gas;
   const depth = manhole?.depthCm || 300;
@@ -122,9 +123,15 @@ function DescentPanel({ samples, manhole }) {
           <span className="inline-flex items-center gap-1"><ArrowDown className="h-4 w-4" aria-hidden /> {samples.length} sample{samples.length === 1 ? '' : 's'} (need {cfg?.descent?.minSamples || 3}+, rising depth)</span>
           <span className={reached ? 'font-black text-emerald-800 dark:text-emerald-400' : ''}>{reached ? '✓ ' : ''}Proof of descent at {need} cm</span>
         </div>
+        {aiAssessment && samples.length > 0 && (
+          <p className={`mt-2 text-lg font-black ${RISK_TEXT[aiAssessment.level] || ''}`} aria-live="polite">
+            AI risk score: {aiAssessment.score} · {aiAssessment.level}
+            {aiAssessment.predictedSafeDepth !== null && <span className="font-bold"> · danger predicted at ~{aiAssessment.predictedSafeDepth} cm</span>}
+          </p>
+        )}
       </div>
 
-      <GasTrend samples={samples} g={g} depth={depth} />
+      <GasTrend samples={samples} g={g} depth={depth} predictedSafeDepth={aiAssessment?.predictedSafeDepth ?? null} trends={aiAssessment?.trends ?? null} />
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-base">
@@ -202,6 +209,27 @@ function ResultPanel({ result, waiting, permitStatus }) {
       <p className="mt-3 break-all font-mono text-sm opacity-90">
         {granted ? `Permit ${result.permitId}` : `Reason code ${result.reason}`} · reading {result.id} · {result.deviceId} · {fmtTime(result.receivedAt)} · via {result.source}
       </p>
+      <AiRow result={result} />
+    </div>
+  );
+}
+
+// AI verdict row inside the result card (white panel so the badge colours stay readable on green/red).
+function AiRow({ result }) {
+  const ai = result.aiAssessment;
+  if (!ai) return null;
+  const pd = ai.predictedSafeDepth;
+  const tookDeeper = result.decision === 'DENIED' && ai.level === 'DANGER' && pd !== null && (result.maxDepth === null || result.maxDepth === undefined || pd <= result.maxDepth);
+  return (
+    <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">AI risk</span>
+        <RiskBadge score={ai.score} level={ai.level} worstGas={ai.worstGas} predictedSafeDepth={pd} />
+        {ai.worstGas && <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">main factor {ai.worstGas.toUpperCase()}</span>}
+      </div>
+      {tookDeeper && (
+        <p className="mt-2 font-black text-red-700 dark:text-red-400">AI predicted danger zone at {pd} cm — reading was taken deeper.</p>
+      )}
     </div>
   );
 }
@@ -233,6 +261,7 @@ export default function LiveOps() {
   const waiting = session && session.status === 'PENDING' && !resultIsCurrent;
   const progressing = probeProgress && session && probeProgress.sessionId === session.id && !resultIsCurrent;
   const samples = progressing ? probeProgress.samples : resultIsCurrent ? lastResult.samples || [] : [];
+  const aiAssessment = progressing ? probeProgress.aiAssessment : resultIsCurrent ? lastResult.aiAssessment : null;
   const manhole = manholeOf(refs, resultIsCurrent ? lastResult.manholeId : session?.manholeId) || manholeOf(refs, session?.manholeId);
   const permit = job || lastPermit;
 
@@ -243,7 +272,7 @@ export default function LiveOps() {
         <div className="min-w-0"><TestForm /></div>
         <Card className="min-w-0" title="2 · Probe descent (proof of descent)" icon={ArrowDown}>
           <SessionStatus session={session} waiting={waiting} />
-          <DescentPanel samples={samples} manhole={manhole} />
+          <DescentPanel samples={samples} manhole={manhole} aiAssessment={aiAssessment} />
         </Card>
       </div>
       <div className="contents lg:block lg:min-w-0 lg:space-y-5 lg:col-span-7">

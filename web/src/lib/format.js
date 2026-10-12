@@ -72,6 +72,14 @@ export function gasLimitText(key, g) {
 }
 
 const nameOf = (list, id) => (list || []).find((x) => x.id === id)?.name || id || '—';
+// AI risk engine helpers. Oxygen is dangerous when it falls; the other gases when they rise.
+export const towardLimit = (key, direction) => (key === 'o2' ? direction === 'falling' : direction === 'rising');
+export const RISK_TEXT = {
+  SAFE: 'text-emerald-800 dark:text-emerald-400',
+  CAUTION: 'text-amber-700 dark:text-amber-400',
+  DANGER: 'text-red-700 dark:text-red-400',
+};
+
 export const workerName = (refs, id) => nameOf(refs?.workers, id);
 export const supervisorName = (refs, id) => nameOf(refs?.supervisors, id);
 export const contractorName = (refs, id) => nameOf(refs?.contractors, id);
@@ -82,7 +90,7 @@ export function summarizeEvent(e) {
   const d = e.data || {};
   switch (e.type) {
     case 'SESSION_STARTED': return `Test ${d.sessionId} at ${d.manholeId} · worker ${d.workerId} · ${d.deviceId} · nonce ${d.nonce}`;
-    case 'READING_RECEIVED': return `${d.deviceId} → ${d.sessionId} · ${d.sampleCount} samples · via ${d.source} · sig ${String(d.sig || '').slice(0, 12)}…`;
+    case 'READING_RECEIVED': return `${d.deviceId} → ${d.sessionId} · ${d.sampleCount} samples · via ${d.source}${d.ai ? ` · AI risk ${d.ai.score} ${d.ai.level}` : ''} · sig ${String(d.sig || '').slice(0, 12)}…`;
     case 'PERMIT_GRANTED': return `${d.permitId} for ${d.manholeId} · probe reached ${d.maxDepth} cm · worker ${d.workerId}`;
     case 'PERMIT_DENIED': return `${d.reason} · ${d.detail}`;
     case 'PERMIT_REVOKED': return `${d.permitId} · ${d.reason}`;

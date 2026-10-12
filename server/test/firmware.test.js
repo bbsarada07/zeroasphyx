@@ -14,6 +14,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const config = require('../src/config');
 const { createApp } = require('../src/app');
+const { assessMonitor } = require('../src/ai');
 
 const FW_DIR = path.join(__dirname, '..', '..', 'firmware');
 const sketchPath = path.join(FW_DIR, 'sketch.ino');
@@ -185,4 +186,60 @@ test('firmware telemetry/alerts link by permitId; closing publishes {siren:false
   srv.engine.closeJob(res.permitId);
   const cmd = srv.engine.deviceLog.find((m) => m.topic === `${config.mqtt.prefix}/beacon/${beacon}/cmd`);
   assert.deepEqual(cmd.payload, { siren: false, end: true });
+});
+
+// ---- edge AI and OLED ------------------------------------------------------------------------------
+test('diagram.json wires the SSD1306 OLED to SDA D21 / SCL D22 at 0x3C, libraries.txt lists its libraries', { skip }, () => {
+  const d = JSON.parse(fs.readFileSync(diagramPath, 'utf8'));
+  const oled = d.parts.find((p) => p.type === 'board-ssd1306');
+  assert.ok(oled, 'OLED part present');
+  assert.equal(String(oled.attrs.i2cAddress).toLowerCase(), '0x3c');
+  const conn = (pin) => d.connections.find((c) => c[0] === `${oled.id}:${pin}`)?.[1];
+  assert.equal(conn('SDA'), 'esp:D21');
+  assert.equal(conn('SCL'), 'esp:D22');
+  assert.ok(conn('VCC') && conn('GND'), 'OLED powered');
+  assert.ok(flat.includes('Wire.begin(PIN_SDA,PIN_SCL);') && flat.includes('display.begin(SSD1306_SWITCHCAPVCC,0x3C)'), 'sketch starts the OLED on those pins');
+  const libs = fs.readFileSync(path.join(FW_DIR, 'libraries.txt'), 'utf8').split(/\r?\n/).filter(Boolean);
+  for (const lib of ['PubSubClient', 'ArduinoJson', 'Adafruit SSD1306', 'Adafruit GFX Library']) assert.ok(libs.includes(lib), lib);
+});
+
+test('localRiskScore() on the probe matches the server AI score for every reading', { skip }, () => {
+  // The exact expressions in sketch.ino (if this fails, the firmware formula changed: keep it in step with server/src/ai.js).
+  for (const expr of [
+    'floatrisk=h2s*100.0f/10;', 'risk=fmaxf(risk,co*100.0f/35);', 'risk=fmaxf(risk,ch4*100.0f/10);',
+    'if(o2<195)o2Risk=(195-o2)*100.0f/195*3;', 'elseif(o2>235)o2Risk=(o2-235)*100.0f/235*2;',
+    'if(gasUnsafe(h2s,ch4,co,o2))risk=fmaxf(risk,(float)RISK_DANGER);', 'returnconstrain((int)lroundf(risk),0,100);',
+    'constintRISK_CAUTION=40,RISK_DANGER=70;',
+  ]) assert.ok(flat.includes(expr), `sketch.ino contains ${expr}`);
+  assert.deepEqual([config.gas.h2sMax, config.gas.coMax, config.gas.ch4Max, config.gas.o2Min, config.gas.o2Max], [10, 35, 10, 195, 235]);
+
+  // The same function, transcribed from the C above
+  const unsafe = (h2s, ch4, co, o2) => h2s >= 10 || co >= 35 || ch4 >= 10 || o2 < 195 || o2 > 235;
+  const device = (h2s, ch4, co, o2) => {
+    let risk = Math.max((h2s * 100) / 10, (co * 100) / 35, (ch4 * 100) / 10);
+    let o2Risk = 0;
+    if (o2 < 195) o2Risk = (((195 - o2) * 100) / 195) * 3;
+    else if (o2 > 235) o2Risk = (((o2 - 235) * 100) / 235) * 2;
+    risk = Math.max(risk, o2Risk);
+    if (unsafe(h2s, ch4, co, o2)) risk = Math.max(risk, 70);
+    return Math.min(100, Math.max(0, Math.round(risk)));
+  };
+  let checked = 0;
+  for (let h2s = 0; h2s <= 14; h2s++) for (let co = 0; co <= 40; co += 4) for (let ch4 = 0; ch4 <= 12; ch4 += 2) for (let o2 = 150; o2 <= 250; o2 += 5) {
+    const server = assessMonitor({ h2s, co, ch4, o2 }, config.gas).score;
+    assert.equal(device(h2s, ch4, co, o2), server, `h2s=${h2s} co=${co} ch4=${ch4} o2=${o2}`);
+    checked++;
+  }
+  assert.ok(checked > 5000);
+  for (const lvl of ['"DANGER"', '"CAUTION"', '"SAFE"']) assert.ok(flat.includes(`return${lvl};`), `riskLevel returns ${lvl}`);
+});
+
+test('probe shows the risk on the OLED and drives the buzzer as specified', { skip }, () => {
+  for (const expr of [
+    'snprintf(l0,sizeof(l0),"DESCENDINGRisk:%d%%",risk);', 'snprintf(l0,sizeof(l0),"MONITORINGRisk:%d%%",risk);',
+    'display.invertDisplay(want);', 'invertUntil=millis()+1000;', 'beep(1000,80);', 'beep(600,100);', 'beep(700,200);',
+    'oledShow("SAFE-alarmcleared"', 'msgUntil=now+2000;',
+  ]) assert.ok(flat.includes(expr.replace(/\s+/g, '')), `sketch.ino contains ${expr}`);
+  // The hard safety floor and the MQTT GAS alert are unchanged
+  assert.ok(flat.includes('if(gasUnsafe(h2s,ch4,co,o2)&&!gasAlertSent){gasAlertSent=true;setAlarm(true);sendAlert("GAS");}'));
 });

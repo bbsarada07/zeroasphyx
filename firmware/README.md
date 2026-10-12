@@ -6,7 +6,7 @@ This folder is the hardware side of ZeroAsphyx: one simulated ESP32 that plays *
 |---|---|
 | `sketch.ino` | Firmware (Arduino C++). The source of truth for the device protocol. |
 | `diagram.json` | Wokwi circuit: the parts and their wiring. |
-| `libraries.txt` | Arduino libraries Wokwi installs: `PubSubClient`, `ArduinoJson`. |
+| `libraries.txt` | Arduino libraries Wokwi installs: `PubSubClient`, `ArduinoJson`, `Adafruit SSD1306`, `Adafruit GFX Library`, `Adafruit BusIO`. |
 
 The server is built to match this firmware. `server/test/firmware.test.js` (part of `npm test`) reads `sketch.ino` and `diagram.json` and fails if the topic prefix, secret, coordinates, signed-string format, sample limits or payload fields drift apart.
 
@@ -16,7 +16,7 @@ The server is built to match this firmware. `server/test/firmware.test.js` (part
 
 1. Open <https://wokwi.com> → **New project** → **ESP32**.
 2. Replace `sketch.ino` and `diagram.json` with the files in this folder.
-3. Add a file named `libraries.txt` with the contents of the one here (or add the two libraries from the Library Manager).
+3. Add a file named `libraries.txt` with the contents of the one here (or add those libraries from the Library Manager).
 4. Press **Start**. Open the serial monitor; you should see:
    ```
    [wifi] connecting.... connected
@@ -44,6 +44,7 @@ The server is built to match this firmware. `server/test/firmware.test.js` (part
 | Buzzer `bz` | D25 | Siren | sounds on local alarm or `{siren:true}` |
 | LED `ledG` | D26 | Status | green = permit granted |
 | LED `ledR` | D27 | Status | red = denied / alarm |
+| OLED `oled` (SSD1306 128×64, I2C 0x3C) | SDA D21, SCL D22 | Probe display | state, live risk score, gas readings |
 
 The gas inputs are on ADC1 pins only, because ADC2 doesn't work while Wi-Fi is on.
 
@@ -73,6 +74,24 @@ IDLE ──challenge──▶ CHALLENGED ──START──▶ DESCENDING ──S
    - SOS button → `SOS` alert and siren
    - slide switch on "still" for **10 s** → `MAN_DOWN` alert (once per job) and siren. The server also raises MAN_DOWN after 20 s of `moving:false` as a backup.
 5. **Job closed.** The supervisor's *Close job* sends `{siren:false, end:true}`. The device goes quiet and returns to IDLE.
+
+### Edge AI: risk score on the probe
+
+`localRiskScore(h2s, ch4, co, o2)` computes the same 0–100 compound risk score as the server (`server/src/ai.js`), so the probe warns the worker even when MQTT is down. `npm test` checks that the two formulas give identical scores.
+
+- Each gas's closeness to its limit: H₂S ÷ 10, CO ÷ 35, CH₄ ÷ 10 (as %). Oxygen below 19.5 % is weighted 3×, above 23.5 % 2×. The highest value wins.
+- Any gas past its hard limit is always at least 70 (DANGER).
+- Levels: **0–39 SAFE**, **40–69 CAUTION**, **70–100 DANGER**.
+
+| When | OLED | Buzzer / LED |
+|---|---|---|
+| Each new descent sample | `DESCENDING  Risk:47%`, depth and sample number, H₂S/CO/CH₄, `CAUTION - rising`, O₂ | SAFE: none. CAUTION: one 100 ms beep at 600 Hz. DANGER: three 80 ms beeps at 1000 Hz with the red LED, and the screen inverts for 1 s |
+| Every 2 s while monitoring | `MONITORING  Risk:23%` and one line per gas, `SAFE` or `!!` | Screen inverted while any gas is unsafe. Crossing 40: one 200 ms beep at 700 Hz. Crossing 70: full alarm |
+| Risk falls back below 40 | `SAFE - alarm cleared` for 2 s | Alarm off, **unless** a MAN_DOWN, SOS or server-ordered siren is active (those keep sounding until the job is closed) |
+
+The hard safety floor is unchanged: `gasUnsafe()` still sends the `GAS` alert over MQTT. The risk score is an extra predictive layer.
+
+If the OLED isn't found, the probe keeps working and prints `[oled] not found`.
 
 ### MQTT topics
 

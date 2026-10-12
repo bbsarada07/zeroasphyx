@@ -1,9 +1,10 @@
 import { useParams } from 'react-router-dom';
 import { Printer, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useApiData } from '../lib/live';
-import { GAS, REASON_HEADLINE, fmtDateTime, fmtMoney, fmtTime, summarizeEvent, shortHash } from '../lib/format';
+import { GAS, REASON_HEADLINE, fmtDateTime, fmtMoney, fmtTime, summarizeEvent, shortHash, towardLimit } from '../lib/format';
 import { Button, ErrorNote, StatusPill } from '../components/ui';
 import { PermitQR } from '../components/PermitCard';
+import RiskBadge from '../components/RiskBadge';
 
 function Section({ title, children }) {
   return (
@@ -100,6 +101,36 @@ export default function Report() {
               </p>
             </div>
           ))}
+        </Section>
+
+        <Section title="AI risk assessment">
+          {r.readings.filter((rd) => rd.aiAssessment).length === 0 ? <p className="font-semibold">No AI assessment recorded.</p> : r.readings.filter((rd) => rd.aiAssessment).map((rd) => {
+            const ai = rd.aiAssessment;
+            return (
+              <div key={rd.id} className="mb-3 break-inside-avoid">
+                <p className="mb-1 flex flex-wrap items-center gap-2 font-semibold">
+                  <RiskBadge score={ai.score} level={ai.level} worstGas={ai.worstGas} predictedSafeDepth={ai.predictedSafeDepth} size="sm" />
+                  <span className="text-xs text-slate-600 dark:text-slate-300">Reading {rd.id} · {fmtDateTime(rd.receivedAt)}</span>
+                </p>
+                {ai.predictedSafeDepth !== null && <p className="font-semibold">Danger zone predicted at {ai.predictedSafeDepth} cm depth</p>}
+                {ai.worstGas && <p className="font-semibold">Primary risk factor: {ai.worstGas.toUpperCase()}</p>}
+                {ai.trends && (
+                  <ul className="mt-1 grid gap-x-6 text-xs sm:grid-cols-2">
+                    {GAS.map((g) => {
+                      const t = ai.trends[g.key];
+                      if (!t) return null;
+                      const rate = g.key === 'o2' ? `${(t.rate / 10).toFixed(4)} %` : `${t.rate} ${g.unit}`;
+                      return (
+                        <li key={g.key} className={towardLimit(g.key, t.direction) ? 'font-bold text-red-700 dark:text-red-400' : ''}>
+                          {g.label}: {t.direction}{t.direction !== 'stable' ? ` (${rate} per cm)` : ''}{towardLimit(g.key, t.direction) ? ', toward its limit' : ''}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
         </Section>
 
         <Section title="Incidents">

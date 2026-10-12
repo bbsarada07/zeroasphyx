@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const config = require('./config');
 const audit = require('./audit');
 const { signReading } = require('./signing');
+const { assess } = require('./ai');
 const { localDate } = require('./util');
 
 const MANHOLES = [
@@ -58,14 +59,17 @@ function seed(store) {
       };
       payload.sig = signReading(payload, probe.secret);
       const readingId = `R-${sessionId.slice(2)}`;
+      const aiAssessment = assess(samples, config.gas);
       log('READING_RECEIVED', {
         readingId, sessionId, deviceId: probe.id, manholeId: manhole.id, lat: manhole.lat, lng: manhole.lng,
         sampleCount: samples.length, sig: payload.sig, source: 'mqtt',
+        ai: { score: aiAssessment.score, level: aiAssessment.level, predictedSafeDepth: aiAssessment.predictedSafeDepth, worstGas: aiAssessment.worstGas },
       }, receivedAt);
       store.insert('readings', {
         id: readingId, receivedAt, source: 'mqtt', ...payload, decision, reason, detail, permitId: permitId || null,
         sessionConsumed: true, contractorId: worker.contractorId,
         maxDepth: Math.max(...samples.map((s) => s.d)),
+        aiAssessment,
       });
       return { session, readingId, receivedAt };
     }

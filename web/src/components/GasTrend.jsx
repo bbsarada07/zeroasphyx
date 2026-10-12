@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CircleCheck, CircleX } from 'lucide-react';
-import { GAS, gasSafe } from '../lib/format';
+import { GAS, gasSafe, towardLimit } from '../lib/format';
 
 const W = 260;
 const H = 116;
@@ -23,7 +23,18 @@ function scaleFor(key, vals, g) {
   return { y0: 0, y1, limits: [limit], danger: [[limit, y1]] };
 }
 
-function GasChart({ gas, samples, g, xMax }) {
+const ARROW = { rising: '↑', falling: '↓', stable: '→' };
+
+// Trend arrow: red when the gas is moving toward its limit, green when moving away, grey when stable.
+function TrendArrow({ gasKey, trend }) {
+  if (!trend) return null;
+  const toward = towardLimit(gasKey, trend.direction);
+  const cls = toward ? 'text-red-700 dark:text-red-400' : trend.direction === 'stable' ? 'text-slate-500 dark:text-slate-400' : 'text-emerald-700 dark:text-emerald-400';
+  const label = `${trend.direction}${toward ? ', toward its limit' : ''} (${trend.rate} per cm)`;
+  return <span className={`text-lg font-black leading-none ${cls}`} title={`Trend ${label}`} aria-label={`Trend ${label}`}>{ARROW[trend.direction] || '→'}</span>;
+}
+
+function GasChart({ gas, samples, g, xMax, predictedSafeDepth, trend }) {
   const [hover, setHover] = useState(null);
   const pts = samples.map((s) => ({ d: Number(s.d) || 0, raw: s[gas.key], v: num(s[gas.key]) }));
   const finite = pts.filter((p) => Number.isFinite(p.v));
@@ -53,8 +64,11 @@ function GasChart({ gas, samples, g, xMax }) {
         <span className="text-base font-black text-slate-900 dark:text-slate-100">
           {gas.label} <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{gas.unit}</span>
         </span>
-        <span className={`inline-flex items-center gap-1 text-xs font-black ${ok ? 'text-emerald-800 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
-          <StatusIcon className="h-4 w-4" aria-hidden /> {ok ? 'SAFE' : 'DANGER'}
+        <span className="inline-flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1 text-xs font-black ${ok ? 'text-emerald-800 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+            <StatusIcon className="h-4 w-4" aria-hidden /> {ok ? 'SAFE' : 'DANGER'}
+          </span>
+          <TrendArrow gasKey={gas.key} trend={trend} />
         </span>
       </div>
       <div className="relative">
@@ -87,6 +101,14 @@ function GasChart({ gas, samples, g, xMax }) {
           ))}
           <text x={M.l} y={H - 6} fontSize="10" className="fill-slate-500 dark:fill-slate-400">0</text>
           <text x={M.l + PW} y={H - 6} fontSize="10" textAnchor="end" className="fill-slate-500 dark:fill-slate-400">{xMax} cm deep</text>
+          {predictedSafeDepth !== null && predictedSafeDepth !== undefined && (predictedSafeDepth <= xMax ? (
+            <g>
+              <line x1={x(predictedSafeDepth)} x2={x(predictedSafeDepth)} y1={M.t} y2={M.t + PH} strokeWidth="1.75" strokeDasharray="5 3" className="stroke-red-600 dark:stroke-red-400" />
+              <text x={x(predictedSafeDepth) + (x(predictedSafeDepth) > M.l + PW - 56 ? -3 : 3)} y={M.t + 8} textAnchor={x(predictedSafeDepth) > M.l + PW - 56 ? 'end' : 'start'} fontSize="9" fontWeight="800" className="fill-red-700 dark:fill-red-400">⚠ AI limit</text>
+            </g>
+          ) : (
+            <text x={M.l + PW} y={M.t + 8} textAnchor="end" fontSize="9" fontWeight="800" className="fill-red-700 dark:fill-red-400">⚠ AI limit {predictedSafeDepth} cm →</text>
+          ))}
           {h && <line x1={x(h.d)} x2={x(h.d)} y1={M.t} y2={M.t + PH} strokeWidth="1" strokeDasharray="2 2" className="stroke-slate-400 dark:stroke-slate-500" />}
           <path d={path} fill="none" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" className="stroke-slate-700 dark:stroke-slate-300" />
           {pts.map((p, i) => {
@@ -110,12 +132,14 @@ function GasChart({ gas, samples, g, xMax }) {
   );
 }
 
-export default function GasTrend({ samples, g, depth }) {
+export default function GasTrend({ samples, g, depth, predictedSafeDepth = null, trends = null }) {
   if (!samples.length || !g) return null;
   const xMax = Math.max(depth, ...samples.map((s) => Number(s.d) || 0));
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Gas level by probe depth">
-      {GAS.map((gas) => <GasChart key={gas.key} gas={gas} samples={samples} g={g} xMax={xMax} />)}
+      {GAS.map((gas) => (
+        <GasChart key={gas.key} gas={gas} samples={samples} g={g} xMax={xMax} predictedSafeDepth={predictedSafeDepth} trend={trends ? trends[gas.key] : null} />
+      ))}
     </div>
   );
 }

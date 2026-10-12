@@ -56,6 +56,12 @@ function buildRouter(engine, sim) {
   // ---- pre-entry test and job
   r.post('/sessions', wrap((req) => engine.startSession(req.body || {})));
   r.get('/permits', wrap(() => store.all('permits')));
+  r.get('/readings/:id', wrap((req) => {
+    const reading = store.get('readings', req.params.id);
+    if (!reading) throw httpError(404, 'Reading not found');
+    return reading;
+  }));
+  r.get('/manholes/:id/risk-history', wrap((req) => engine.riskHistory(req.params.id)));
   r.get('/permits/:id', wrap((req) => {
     const p = store.get('permits', req.params.id);
     if (!p) throw httpError(404, 'Permit not found');

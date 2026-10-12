@@ -1,2 +1,5 @@
 PubSubClient
 ArduinoJson
+Adafruit GFX Library
+Adafruit BusIO
+Adafruit SSD1306

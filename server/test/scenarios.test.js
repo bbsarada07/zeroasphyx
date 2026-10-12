@@ -17,11 +17,12 @@ Object.assign(process.env, {
   ZA_PERMIT_VALIDITY_MS: '4000',
 });
 
-const { test, before, after, beforeEach } = require('node:test');
+const { test, describe, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { createApp } = require('../src/app');
 const { readingMessage, signReading } = require('../src/signing');
 const config = require('../src/config');
+const { assess, assessMonitor } = require('../src/ai');
 
 let srv;
 let engine;
@@ -411,4 +412,87 @@ test('simulator refuses to run in LIVE mode', async () => {
   await post('/mode', { mode: 'LIVE' });
   const r = await post('/sim/safe-descent');
   assert.equal(r.status, 409);
+});
+
+// ------------------------------------------------------------------ AI predictive risk engine
+describe('AI risk engine: score, trend, predicted safe depth', () => {
+  const LEVELS = ['SAFE', 'CAUTION', 'DANGER'];
+
+  test('safe samples -> low score, SAFE, no predicted danger depth', () => {
+    const samples = [50, 100, 150, 200, 250].map((d) => ({ d, h2s: 1, co: 5, ch4: 2, o2: 205 }));
+    const a = assess(samples, config.gas);
+    assert.ok(a.score <= 39, `score ${a.score}`);
+    assert.equal(a.level, 'SAFE');
+    assert.equal(a.predictedSafeDepth, null);
+    for (const k of ['h2s', 'co', 'ch4', 'o2']) assert.deepEqual(a.trends[k], { rate: 0, direction: 'stable' });
+  });
+
+  test('rising H2S with depth -> rising trend and a predicted danger depth before 300 cm', () => {
+    const samples = [[50, 3], [100, 5], [150, 7]].map(([d, h2s]) => ({ d, h2s, co: 2, ch4: 1, o2: 208 }));
+    const a = assess(samples, config.gas);
+    assert.equal(a.trends.h2s.direction, 'rising');
+    assert.equal(typeof a.predictedSafeDepth, 'number');
+    assert.ok(a.predictedSafeDepth < 300, `predicted ${a.predictedSafeDepth}`);
+    assert.equal(a.predictedSafeDepth, 225); // 1 + 0.04 ppm/cm reaches 10 ppm at 225 cm
+    assert.equal(a.worstGas, 'h2s');
+  });
+
+  test('full simulated session returns an aiAssessment with a valid score and level', async () => {
+    const r = await sim('safe-descent');
+    assert.equal(r.decision, 'GRANTED');
+    assert.equal(typeof r.aiAssessment.score, 'number');
+    assert.ok(r.aiAssessment.score >= 0 && r.aiAssessment.score <= 100);
+    assert.ok(LEVELS.includes(r.aiAssessment.level));
+  });
+
+  test('DENIED for unsafe gas -> DANGER score (>= 70)', async () => {
+    const r = await sim('unsafe-gas');
+    assert.equal(r.reason, 'UNSAFE_GAS');
+    assert.ok(r.aiAssessment.score >= 70, `score ${r.aiAssessment.score}`);
+    assert.equal(r.aiAssessment.level, 'DANGER');
+  });
+});
+
+test('AI: any gas past its hard limit is DANGER, including low oxygen', () => {
+  const o2Low = assess([{ d: 10, h2s: 0, co: 0, ch4: 0, o2: 208 }, { d: 200, h2s: 0, co: 0, ch4: 0, o2: 190 }], config.gas);
+  assert.equal(o2Low.level, 'DANGER');
+  assert.equal(o2Low.worstGas, 'o2');
+  assert.equal(o2Low.trends.o2.direction, 'falling');
+  assert.equal(typeof o2Low.predictedSafeDepth, 'number', 'falling oxygen is extrapolated to its lower limit');
+  assert.equal(assessMonitor({ h2s: 0, co: 0, ch4: 0, o2: 236 }, config.gas).level, 'DANGER');
+  assert.equal(assessMonitor({ h2s: 7, co: 0, ch4: 0, o2: 208 }, config.gas).level, 'DANGER'); // 70% of the H2S limit
+  assert.equal(assessMonitor({ h2s: 4, co: 0, ch4: 0, o2: 208 }, config.gas).level, 'CAUTION');
+  assert.equal(assess([], config.gas).level, 'DANGER', 'no measurements is never called safe');
+});
+
+test('AI assessment is stored, exposed on /api/readings/:id, the live snapshot and descent progress', async () => {
+  const r = await sim('safe-descent');
+  const reading = await get(`/readings/${r.readingId}`);
+  assert.deepEqual(reading.aiAssessment, r.aiAssessment);
+  assert.equal((await api('GET', '/readings/R-NOTREAL')).status, 404);
+  const live = await get('/live');
+  assert.deepEqual(live.lastResult.aiAssessment, r.aiAssessment);
+  engine.setProbeProgress('S-TEST', [{ d: 10, h2s: 2, co: 3, ch4: 1, o2: 208 }, { d: 60, h2s: 6, co: 3, ch4: 1, o2: 207 }]);
+  const progress = (await get('/live')).probeProgress;
+  assert.equal(progress.aiAssessment.level, 'CAUTION');
+  assert.equal(progress.aiAssessment.trends.h2s.direction, 'rising');
+});
+
+test('GET /api/manholes/:id/risk-history comes from the audit log, newest last, max 20', async () => {
+  await sim('safe-descent');
+  await sim('unsafe-gas');
+  const hist = await get('/manholes/MH-001/risk-history');
+  assert.ok(hist.length >= 2 && hist.length <= 20);
+  const [prev, last] = hist.slice(-2);
+  assert.equal(prev.decision, 'GRANTED');
+  assert.equal(last.decision, 'DENIED');
+  assert.equal(last.aiAssessment.level, 'DANGER');
+  assert.deepEqual(Object.keys(last.aiAssessment).sort(), ['level', 'predictedSafeDepth', 'score']);
+  const seeded = await get('/manholes/MH-003/risk-history');
+  assert.equal(seeded.length, 2, 'seeded history has an assessment too');
+  assert.ok(seeded.every((h) => typeof h.aiAssessment.score === 'number'));
+  assert.equal((await api('GET', '/manholes/MH-999/risk-history')).status, 404);
+  for (let i = 0; i < 22; i++) engine.handleReading({ sessionId: 'S-NONE', deviceId: 'PROBE-001', manholeId: 'MH-002', samples: [] }, { source: 'test' });
+  assert.equal((await get('/manholes/MH-002/risk-history')).length, 20);
+  assert.equal((await get('/audit/verify')).ok, true);
 });

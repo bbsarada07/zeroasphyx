@@ -5,6 +5,7 @@ const EventEmitter = require('events');
 const config = require('./config');
 const audit = require('./audit');
 const { decide } = require('./decision');
+const { assess, assessMonitor } = require('./ai');
 const { gasFailures, describeFailures } = require('./gas');
 const { seed } = require('./seed');
 const { rid, nowIso, httpError } = require('./util');
@@ -107,7 +108,8 @@ class Engine extends EventEmitter {
   }
 
   setProbeProgress(sessionId, samples) {
-    this.probeProgress = { sessionId, samples, ts: nowIso() };
+    // Live risk score while the probe is still going down.
+    this.probeProgress = { sessionId, samples, ts: nowIso(), aiAssessment: assess(samples, config.gas) };
     this.changed();
   }
 
@@ -156,9 +158,11 @@ class Engine extends EventEmitter {
       sig: str(payload.sig).toLowerCase(),
     };
     const readingId = rid('R');
+    const aiAssessment = assess(r.samples, config.gas);
     this.log('READING_RECEIVED', {
       readingId, sessionId: r.sessionId, deviceId: r.deviceId, manholeId: r.manholeId, lat: r.lat, lng: r.lng,
       sampleCount: r.samples.length, sig: r.sig, source,
+      ai: { score: aiAssessment.score, level: aiAssessment.level, predictedSafeDepth: aiAssessment.predictedSafeDepth, worstGas: aiAssessment.worstGas },
     });
 
     const result = decide(r, this.store, now);
@@ -198,6 +202,7 @@ class Engine extends EventEmitter {
       decision: result.decision, reason: result.code, detail: result.detail, gas: result.gas || null,
       maxDepth: result.maxDepth ?? null, permitId: permit ? permit.id : null,
       sessionConsumed: Boolean(result.consumesSession), contractorId: linkedSession ? linkedSession.contractorId : null,
+      aiAssessment,
     };
     this.store.insert('readings', reading);
     if (this.probeProgress && this.probeProgress.sessionId === r.sessionId) this.probeProgress = null;
@@ -206,7 +211,10 @@ class Engine extends EventEmitter {
     if (permit) out.permitId = permit.id;
     this.sendToDevice(`probe/${r.deviceId}/result`, out);
     this.changed();
-    return { decision: result.decision, reason: result.code, detail: result.detail, gas: result.gas || null, permitId: out.permitId || null, readingId, sessionId: r.sessionId };
+    return {
+      decision: result.decision, reason: result.code, detail: result.detail, gas: result.gas || null,
+      permitId: out.permitId || null, readingId, sessionId: r.sessionId, aiAssessment,
+    };
   }
 
   // ------------------------------------------------------------------ during the job
@@ -218,6 +226,7 @@ class Engine extends EventEmitter {
       h2s: numOrNull(payload.h2s), ch4: numOrNull(payload.ch4), co: numOrNull(payload.co), o2: numOrNull(payload.o2),
       moving: toBool(payload.moving, true), sos: toBool(payload.sos, false),
     };
+    t.aiAssessment = assessMonitor(t, config.gas);
     this.latestTelemetry = t;
     const permit = t.permitId ? this.store.get('permits', t.permitId) : null;
     if (!permit || !permit.jobOpen) {
@@ -346,6 +355,25 @@ class Engine extends EventEmitter {
 
   notesFor(permitId) {
     return this.store.allEvents().filter((e) => e.type === 'NOTE_ADDED' && e.data.permitId === permitId).map(noteOf);
+  }
+
+  // Last 20 pre-entry readings for a manhole, straight from the audit log (tamper-evident).
+  riskHistory(manholeId) {
+    if (!this.store.get('manholes', manholeId)) throw httpError(404, 'Manhole not found');
+    const events = this.store.allEvents();
+    const decisions = new Map();
+    for (const e of events) {
+      if (e.type === 'PERMIT_GRANTED' || e.type === 'PERMIT_DENIED') decisions.set(e.data.readingId, e.type === 'PERMIT_GRANTED' ? 'GRANTED' : 'DENIED');
+    }
+    return events
+      .filter((e) => e.type === 'READING_RECEIVED' && e.data.manholeId === manholeId)
+      .slice(-20)
+      .map((e) => ({
+        id: e.data.readingId,
+        receivedAt: e.ts,
+        decision: decisions.get(e.data.readingId) || null,
+        aiAssessment: e.data.ai ? { score: e.data.ai.score, level: e.data.ai.level, predictedSafeDepth: e.data.ai.predictedSafeDepth } : null,
+      }));
   }
 
   pruneTelemetry(permitId) {

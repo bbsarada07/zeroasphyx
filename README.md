@@ -51,7 +51,7 @@ The first start creates `server/data/zeroasphyx.db` with the demo seed. To resto
 ### Tests
 
 ```bash
-npm test           # 37 automated tests: all 8 simulator scenarios, every denial code, monitoring, payment gate,
+npm test           # 48 automated tests: all 8 simulator scenarios, every denial code, monitoring, payment gate, AI risk engine,
                    # audit chain, and firmware compatibility (reads firmware/sketch.ino and diagram.json)
 npm run test:mqtt  # live round trip over broker.hivemq.com, with a script playing the ESP32 (exits 2 if the broker is unreachable)
 ```
@@ -186,6 +186,17 @@ The server builds the same string in `server/src/signing.js` and compares in con
 - **Payment gate:** APPROVED only if, for the bill's manhole and job date, there is a permit that was issued before work began, ended CLOSED, has no incident, **and** the audit chain verifies. Any one clean permit for that manhole and date is enough (e.g. after a re-test).
 - **Compliance %** = billed jobs backed by a clean permit ÷ all billed jobs.
 - The **live dashboard** shows only the last 30 minutes of activity. Seeded history is visible in reports, payments and the audit log.
+
+### AI predictive risk engine
+
+`server/src/ai.js` turns readings into a **compound risk score (0–100)** and predicts **the depth at which the air becomes unsafe**, before the worker gets there. The probe computes the same score on the device (see [firmware/README.md](firmware/README.md#edge-ai-risk-score-on-the-probe)).
+
+- **Score:** each gas's closeness to its limit at the deepest sample (H₂S ÷ 10, CO ÷ 35, CH₄ ÷ 10, as %; low O₂ weighted 3×, high O₂ 2×); the highest wins, and that gas is the `worstGas`. Any gas past its hard limit counts as at least 70. **0–39 SAFE, 40–69 CAUTION, 70–100 DANGER.**
+- **Trend:** a least-squares line of each gas against depth. A slope above 0.01 per cm (1 ppm per metre) is rising, below −0.01 falling, otherwise stable.
+- **Predicted danger depth:** each gas moving toward its limit (H₂S/CO/CH₄ rising, O₂ falling) is extrapolated to where it would cross the limit; the shallowest crossing is `predictedSafeDepth`.
+- **Where it appears:** a risk badge in the GRANTED/DENIED card; a live risk score while the simulated probe descends; a dashed "⚠ AI limit" line and trend arrows on the gas-vs-depth charts; an "AI risk assessment" section in the evidence report; the score in the audit log.
+- **API:** `aiAssessment` on every reading (`GET /api/readings/:id`, the live `lastResult`, descent `probeProgress`), and `GET /api/manholes/:id/risk-history` (last 20 readings for a manhole, read from the hash-chained audit log).
+- The real probe sends its samples only when START is pressed the second time, so with Wokwi the dashboard shows the score once the reading arrives; during the descent, the score is on the probe's OLED. The live score during descent on the dashboard comes from the simulator.
 
 ### Tamper-evident log
 
